@@ -2,6 +2,8 @@ require("dotenv").config();
 
 const express = require("express");
 const http = require("http");
+const cors = require("cors");
+const helmet = require("helmet");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
@@ -9,33 +11,65 @@ const connectDB = require("./src/config/db");
 const User = require("./src/models/User");
 
 const app = express();
+
+/* -------------------- BASIC MIDDLEWARE -------------------- */
+
 app.use(express.json());
+app.use(helmet());
+
+/* -------------------- CORS CONFIG -------------------- */
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.FRONTEND_URL, // must be EXACT (no trailing slash)
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error("❌ CORS blocked:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  }),
+);
+
+// VERY IMPORTANT for preflight
+app.options("*", cors());
+
+/* -------------------- SERVER -------------------- */
 
 const PORT = process.env.PORT || 5000;
-
-// Create HTTP server
 const server = http.createServer(app);
 
-// Create Socket.IO server
+/* -------------------- SOCKET.IO -------------------- */
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
+    origin: allowedOrigins,
     credentials: true,
   },
 });
 
-// Inject io into requests
+// Attach io to requests
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// Health check (IMPORTANT for Render)
+/* -------------------- HEALTH CHECK -------------------- */
+
 app.get("/", (req, res) => {
   res.send("Backend is running ✅");
 });
 
-// Socket.IO authentication
+/* -------------------- SOCKET AUTH -------------------- */
+
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
@@ -53,7 +87,8 @@ io.use(async (socket, next) => {
   }
 });
 
-// Socket.IO events
+/* -------------------- SOCKET EVENTS -------------------- */
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.user?.email);
 
@@ -76,7 +111,8 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server ONLY ONCE
+/* -------------------- START SERVER -------------------- */
+
 (async () => {
   try {
     await connectDB();

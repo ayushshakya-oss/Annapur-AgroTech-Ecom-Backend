@@ -25,8 +25,8 @@ const server = http.createServer(app);
 
 // Define allowed origins
 const allowedOrigins = [
-  "http://localhost:3000", // local dev
   process.env.FRONTEND_URL, // production frontend (from .env)
+  "http://localhost:3000", // local dev
 ];
 
 // Setup Socket.io CORS
@@ -62,7 +62,7 @@ app.use(
       }
     },
     credentials: true,
-  })
+  }),
 );
 
 // Custom logger
