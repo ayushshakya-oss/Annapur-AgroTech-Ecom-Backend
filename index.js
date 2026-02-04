@@ -10,6 +10,8 @@ const multer = require("multer");
 const { Server } = require("socket.io");
 const http = require("http");
 
+const { buildCorsOptions, getAllowedOrigins } = require("./src/config/cors");
+
 // Middlewares
 const loggerMiddleware = require("./src/middleware/loggerMiddleware");
 const errorMiddleware = require("./src/middleware/errorMiddleware");
@@ -24,10 +26,7 @@ const server = http.createServer(app);
 // --------------------
 
 // Define allowed origins
-const allowedOrigins = [
-  process.env.FRONTEND_URL, // production frontend (from .env)
-  "http://localhost:3000", // local dev
-];
+const allowedOrigins = getAllowedOrigins();
 
 // Setup Socket.io CORS
 const io = new Server(server, {
@@ -50,20 +49,10 @@ app.use(express.json({ limit: "1mb" }));
 app.use(helmet());
 
 // Proper CORS middleware (no wildcard + credentials-safe)
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like Postman) or allowed origins
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.error("❌ CORS blocked:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  }),
-);
+app.use(cors(buildCorsOptions()));
+
+// Ensure preflight requests always succeed when origin is allowed
+app.options(/.*/, cors(buildCorsOptions()));
 
 // Custom logger
 app.use(loggerMiddleware);

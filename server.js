@@ -7,6 +7,8 @@ const helmet = require("helmet");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
+const { buildCorsOptions, getAllowedOrigins } = require("./src/config/cors");
+
 const connectDB = require("./src/config/db");
 const User = require("./src/models/User");
 
@@ -19,28 +21,12 @@ app.use(helmet());
 
 /* -------------------- CORS CONFIG -------------------- */
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  process.env.FRONTEND_URL, // must be EXACT (no trailing slash)
-];
+const allowedOrigins = getAllowedOrigins();
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.error("❌ CORS blocked:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  }),
-);
+app.use(cors(buildCorsOptions()));
 
 // VERY IMPORTANT for preflight
-app.options("*", cors());
+app.options(/.*/, cors(buildCorsOptions()));
 
 /* -------------------- SERVER -------------------- */
 
